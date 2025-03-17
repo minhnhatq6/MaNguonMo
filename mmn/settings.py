@@ -71,8 +71,15 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'mmn.wsgi.application'
 
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',  # Dùng SQLite để tránh lỗi
+        'NAME': BASE_DIR / "db.sqlite3",
+    }
+}
 
-# Database
+
+
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
 

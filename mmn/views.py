@@ -5,7 +5,6 @@ from rest_framework import viewsets
 from pymongo import MongoClient
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
-from pymongo import MongoClient
 from .serializers import *
 from django.http import JsonResponse
 # Kết nối đến MongoDB
@@ -53,99 +52,93 @@ def tinchi_view(request):
     return render(request, 'qlht/tinchi.html', {'tinchi': tinchi_list})
 
 
-# ##API
-# collections = {
-#     "taikhoan": db['TaiKhoan'],
-#     "monhoc": db['QLMonHoc'],
-#     "ketqua": db['QLKetQuaHoc'],
-#     "vieccanlam": db['ViecCanLam'],
-#     "thongtinnguoidung": db['ThongTinNguoiDung'],
-#     "thoikhoabieu": db['ThoiKhoaBieu'],
-#     "tinchi": db['QLTinChi']
-# }
+##API
+collections = {
+    "taikhoan": db['TaiKhoan'],
+    "monhoc": db['QLMonHoc'],
+    "ketqua": db['QLKetQuaHoc'],
+    "vieccanlam": db['ViecCanLam'],
+    "thongtinnguoidung": db['ThongTinNguoiDung'],
+    "thoikhoabieu": db['ThoiKhoaBieu'],
+    "tinchi": db['QLTinChi']
+}
 
-# serializers_map = {
-#     "taikhoan": TaiKhoanSerializer,
-#     "monhoc": QLMonHocSerializer,
-#     "ketqua": QLKetQuaHocSerializer,
-#     "vieccanlam": ViecCanLamSerializer,
-#     "thongtinnguoidung": ThongTinNguoiDungSerializer,
-#     "thoikhoabieu": ThoiKhoaBieuSerializer,
-#     "tinchi": QLTinChiSerializer
-# }
+serializers_map = {
+    "taikhoan": TaiKhoanSerializer,
+    "monhoc": QLMonHocSerializer,
+    "ketqua": QLKetQuaHocSerializer,
+    "vieccanlam": ViecCanLamSerializer,
+    "thongtinnguoidung": ThongTinNguoiDungSerializer,
+    "thoikhoabieu": ThoiKhoaBieuSerializer,
+    "tinchi": QLTinChiSerializer
+}
 
-# @api_view(['GET'])
-# def get_data(request, collection_name):
-#     if collection_name in collections:
-#         data = list(collections[collection_name].find({}, {"_id": 0}))
-#         serializer_class = serializers_map.get(collection_name)
-#         serializer = serializer_class(data, many=True)
-#         return Response(serializer.data)
-#     return Response({"error": "Collection not found"}, status=404)
+# 🔹 Hiển thị dữ liệu từ MongoDB trên giao diện
+def get_data_view(request, collection_name):
+    if collection_name in collections:
+        data = list(collections[collection_name].find({}, {"_id": 0}))
+        return render(request, f'qlht/{collection_name}.html', {collection_name: data})
+    return JsonResponse({"error": "Collection not found"}, status=404)
 
-# @api_view(['POST'])
-# def create_data(request, collection_name):
-#     if collection_name in collections:
-#         collections[collection_name].insert_one(request.data)
-#         return Response({"message": f"{collection_name} record created successfully"}, status=201)
-#     return Response({"error": "Collection not found"}, status=404)
+# 🔹 API lấy dữ liệu
+@api_view(['GET'])
+def get_data(request, collection_name):
+    if collection_name in collections:
+        data = list(collections[collection_name].find({}, {"_id": 0}))
+        return Response(data)
+    return Response({"error": "Collection not found"}, status=404)
 
+# 🔹 API tạo dữ liệu
+@api_view(['POST'])
+def create_data(request, collection_name):
+    if collection_name in collections:
+        collections[collection_name].insert_one(request.data)
+        return Response({"message": f"{collection_name} record created successfully"}, status=201)
+    return Response({"error": "Collection not found"}, status=404)
 
-# def home(request):
-#     return JsonResponse({"message": "Welcome to the MongoDB Django API!"})
+# 🔹 API lấy dữ liệu từ collection "ketqua"
+def api_get_ketqua(request):
+    ketqua_list = list(collections["ketqua"].find({}, {"_id": 0}))
+    return JsonResponse({"data": ketqua_list}, safe=False)
 
-# def api_get_ketqua(request):
-#     ketqua_list = list(QLKetQuaHoc.find({}, {"_id": 0}))  # Lấy tất cả dữ liệu, bỏ ObjectId
-#     return JsonResponse({"data": ketqua_list}, safe=False)
+# 🔹 API mặc định
+def home(request):
+    return JsonResponse({"message": "Welcome to the MongoDB Django API!"})
 
+# 🔹 ViewSet cho các bảng (MongoDB không hỗ trợ ModelViewSet nên phải dùng custom ViewSet)
+class GenericMongoViewSet(viewsets.ViewSet):
+    collection_name = None  # Collection tương ứng với mỗi ViewSet
 
-# from rest_framework import viewsets
+    def list(self, request):
+        if self.collection_name in collections:
+            data = list(collections[self.collection_name].find({}, {"_id": 0}))
+            return Response(data)
+        return Response({"error": "Collection not found"}, status=404)
 
-# from .serializers import (
-#     TaiKhoanSerializer, QLMonHocSerializer, QLKetQuaHocSerializer,
-#     ViecCanLamSerializer, ThongTinNguoiDungSerializer, ThoiKhoaBieuSerializer, QLTinChiSerializer
-# )
+    def create(self, request):
+        if self.collection_name in collections:
+            collections[self.collection_name].insert_one(request.data)
+            return Response({"message": "Record created successfully"}, status=201)
+        return Response({"error": "Collection not found"}, status=404)
 
+# 🔹 Các ViewSet cho từng bảng
+class TaiKhoanViewSet(GenericMongoViewSet):
+    collection_name = "taikhoan"
 
-# # Các ViewSet sử dụng MongoDB
-# class TaiKhoanViewSet(viewsets.ViewSet):
-#     def list(self, request):
-#         taikhoans = list(db['TaiKhoan'].find({}, {"_id": 0}))
-#         serializer = TaiKhoanSerializer(taikhoans, many=True)
-#         return Response(serializer.data)
+class QLMonHocViewSet(GenericMongoViewSet):
+    collection_name = "monhoc"
 
-# class QLMonHocViewSet(viewsets.ViewSet):
-#     def list(self, request):
-#         monhocs = list(db['QLMonHoc'].find({}, {"_id": 0}))
-#         serializer = QLMonHocSerializer(monhocs, many=True)
-#         return Response(serializer.data)
+class QLKetQuaHocViewSet(GenericMongoViewSet):
+    collection_name = "ketqua"
 
-# class QLKetQuaHocViewSet(viewsets.ViewSet):
-#     def list(self, request):
-#         ketquas = list(db['QLKetQuaHoc'].find({}, {"_id": 0}))
-#         serializer = QLKetQuaHocSerializer(ketquas, many=True)
-#         return Response(serializer.data)
+class ViecCanLamViewSet(GenericMongoViewSet):
+    collection_name = "vieccanlam"
 
-# class ViecCanLamViewSet(viewsets.ViewSet):
-#     def list(self, request):
-#         vieccanlam_list = list(db['ViecCanLam'].find({}, {"_id": 0}))
-#         serializer = ViecCanLamSerializer(vieccanlam_list, many=True)
-#         return Response(serializer.data)
+class ThongTinNguoiDungViewSet(GenericMongoViewSet):
+    collection_name = "thongtinnguoidung"
 
-# class ThongTinNguoiDungViewSet(viewsets.ViewSet):
-#     def list(self, request):
-#         nguoidung_list = list(db['ThongTinNguoiDung'].find({}, {"_id": 0}))
-#         serializer = ThongTinNguoiDungSerializer(nguoidung_list, many=True)
-#         return Response(serializer.data)
+class ThoiKhoaBieuViewSet(GenericMongoViewSet):
+    collection_name = "thoikhoabieu"
 
-# class ThoiKhoaBieuViewSet(viewsets.ViewSet):
-#     def list(self, request):
-#         tkb_list = list(db['ThoiKhoaBieu'].find({}, {"_id": 0}))
-#         serializer = ThoiKhoaBieuSerializer(tkb_list, many=True)
-#         return Response(serializer.data)
-
-# class QLTinChiViewSet(viewsets.ViewSet):
-#     def list(self, request):
-#         tinchi_list = list(db['QLTinChi'].find({}, {"_id": 0}))
-#         serializer = QLTinChiSerializer(tinchi_list, many=True)
-#         return Response(serializer.data)
+class QLTinChiViewSet(GenericMongoViewSet):
+    collection_name = "tinchi"
